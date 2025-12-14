@@ -13,6 +13,27 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+const { testDb } = require('./config/db');
+
+app.get('/health/db', async (req, res) => {
+  try {
+    const r = await testDb();
+    return res.status(200).json({
+      status: 'ok',
+      db: 'connected',
+      db_now: r.now,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    return res.status(503).json({
+      status: 'degraded',
+      db: 'disconnected',
+      error: err.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
+
 
 // Error handler mínimo
 app.use((err, req, res, next) => {
