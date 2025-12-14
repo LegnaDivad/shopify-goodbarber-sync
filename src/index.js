@@ -2,7 +2,14 @@ require('dotenv').config();
 const express = require('express');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({
+  verify: (req, res, buf) => {
+    // Guardar rawBody solo en rutas de webhooks Shopify
+    if (req.originalUrl.startsWith('/webhooks/shopify')) {
+      req.rawBody = buf; // Buffer
+    }
+  }
+}));
 
 const PORT = process.env.PORT || 3000;
 
@@ -44,3 +51,8 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Service listening on port ${PORT}`);
 });
+
+//Rutas de webhooks Shopify
+const shopifyWebhooksRouter = require('./webhooks/shopify.routes');
+
+app.use('/webhooks/shopify', shopifyWebhooksRouter);
