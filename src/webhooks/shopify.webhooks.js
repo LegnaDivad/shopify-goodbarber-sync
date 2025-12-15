@@ -15,6 +15,8 @@ function timingSafeEqualBase64(a, b) {
 }
 
 router.post('/shopify', rawJson, async (req, res) => {
+
+
   const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
   if (!secret) return res.status(500).json({ error: 'Missing SHOPIFY_WEBHOOK_SECRET' });
 
@@ -26,6 +28,8 @@ router.post('/shopify', rawJson, async (req, res) => {
   const webhookId = req.get('x-shopify-webhook-id') || req.get('X-Shopify-Webhook-Id');
   const triggeredAt = req.get('x-shopify-triggered-at') || req.get('X-Shopify-Triggered-At');
   const eventId = req.get('x-shopify-event-id') || req.get('X-Shopify-Event-Id');
+
+
 
   if (!hmacHeader || !topic || !eventId) {
     return res.status(400).json({ error: 'Missing required Shopify headers' });
@@ -64,3 +68,4 @@ router.post('/shopify', rawJson, async (req, res) => {
 });
 
 module.exports = router;
+
