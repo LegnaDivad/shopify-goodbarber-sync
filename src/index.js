@@ -54,5 +54,12 @@ app.listen(PORT, () => {
 
 //Rutas de webhooks Shopify
 const shopifyWebhooksRouter = require('./webhooks/shopify.routes');
-
 app.use('/webhooks/shopify', shopifyWebhooksRouter);
+
+//Rutas de test GoodBarber
+const goodbarberTestRoutes = require('./webhooks/goodbarberTest.routes');
+app.use(goodbarberTestRoutes);
+
+// Rutas de webhooks
+const shopifyWebhooks = require('./webhooks/shopify.webhooks');
+app.use('/webhooks', shopifyWebhooks);
