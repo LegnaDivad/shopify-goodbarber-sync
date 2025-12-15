@@ -81,6 +81,10 @@ app.use('/webhooks', shopifyWebhooks);
 const { listProducts } = require('./services/shopifyAdmin');
 const { buildRowsFromShopify, buildGoodbarberCsv } = require('./sync/buildGoodbarberCsv');
 
+// Rutas de autenticación Shopify
+const shopifyAuthRoutes = require('./routes/shopifyAuth.routes');
+app.use('/auth', shopifyAuthRoutes);
+
 // Export CSV (GoodBarber)
 app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
   try {
