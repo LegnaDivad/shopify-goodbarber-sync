@@ -44,6 +44,17 @@ app.get('/health/db', async (req, res) => {
   }
 });
 
+app.get('/auth/shopify/status', (req, res) => {
+  res.json({
+    ok: true,
+    baseUrl: process.env.APP_BASE_URL || null,
+    redirectUri: process.env.SHOPIFY_REDIRECT_URI || null,
+    scopes: process.env.SHOPIFY_SCOPES || null,
+    hasClientId: Boolean(process.env.SHOPIFY_CLIENT_ID),
+    hasClientSecret: Boolean(process.env.SHOPIFY_CLIENT_SECRET),
+  });
+});
+
 
 // Error handler mínimo
 app.use((err, req, res, next) => {
