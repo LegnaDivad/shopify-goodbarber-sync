@@ -1,9 +1,4 @@
-app.use((req, res, next) => {
-  if (req.path.startsWith('/auth/shopify')) {
-    console.log('[SHOPIFY_AUTH]', req.method, req.originalUrl);
-  }
-  next();
-});
+
 
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
@@ -20,6 +15,13 @@ app.use(express.json({
     }
   }
 }));
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/auth/shopify')) {
+    console.log('[SHOPIFY_AUTH]', req.method, req.originalUrl);
+  }
+  next();
+});
 
 const PORT = process.env.PORT || 3000;
 
