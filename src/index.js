@@ -1,3 +1,5 @@
+const { getShopifyAccessToken } = require('./services/shopifyTokenStore');
+const { listProducts } = require('./services/shopifyAdmin');
 
 
 const dns = require('dns');
@@ -98,13 +100,18 @@ app.use('/auth', shopifyAuthRoutes);
 app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
   try {
     const key = req.header('x-export-key');
-    const headerKey = req.header('x-export-key');
-
     if (!process.env.EXPORT_KEY || key !== process.env.EXPORT_KEY) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const data = await listProducts(250);
+    const inputShop = req.query.shop;
+    if (!inputShop) return res.status(400).json({ error: 'Missing ?shop=' });
+
+    const { shopDomain, accessToken } = await getShopifyAccessToken(inputShop);
+    if (!shopDomain) return res.status(404).json({ error: 'Unknown shop/alias', inputShop });
+    if (!accessToken) return res.status(404).json({ error: 'Token not found for shop', shopDomain });
+
+    const data = await listProducts(shopDomain, accessToken, 250);
     const products = data.products || [];
 
     const rows = buildRowsFromShopify(products);
