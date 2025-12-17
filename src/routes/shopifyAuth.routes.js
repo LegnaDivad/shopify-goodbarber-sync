@@ -100,18 +100,36 @@ router.get('/shopify/callback', async (req, res) => {
   const accessToken = tokenJson.access_token;
   const scope = tokenJson.scope || null;
 
-  await pool.query(
-    `
-    insert into public.shopify_store_token (shop_domain, access_token, scope)
-    values ($1, $2, $3)
-    on conflict (shop_domain)
-    do update set access_token=excluded.access_token, scope=excluded.scope, updated_at=now()
-    `,
-    [shop, accessToken, scope]
-  );
+ await pool.query(
+  `
+  insert into public.shopify_store_token (shop_domain, access_token, scope)
+  values ($1, $2, $3)
+  on conflict (shop_domain)
+  do update set access_token=excluded.access_token, scope=excluded.scope, updated_at=now()
+  `,
+  [shop, accessToken, scope]
+);
 
-  // Respuesta minimalista (luego puedes redirigir a una UI /app)
-  return res.status(200).send('OK - Shopify connected. You can close this window.');
+// Verificación “hard”
+const verify = await pool.query(
+  `select shop_domain, scope, installed_at, updated_at
+   from public.shopify_store_token
+   where shop_domain=$1`,
+  [shop]
+);
+
+if (!verify.rowCount) {
+  // Si esto pasa, hay un problema serio de DB/transaction/target
+  return res.status(500).json({ ok: false, error: 'Token not persisted', shop });
+}
+
+return res.status(200).json({
+  ok: true,
+  shop,
+  scope,
+  saved: true,
+  savedRow: verify.rows[0]
+});
 });
 
 router.get('/shopify/installed', async (req, res) => {

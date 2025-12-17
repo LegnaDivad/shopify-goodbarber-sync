@@ -1,3 +1,10 @@
+app.use((req, res, next) => {
+  if (req.path.startsWith('/auth/shopify')) {
+    console.log('[SHOPIFY_AUTH]', req.method, req.originalUrl);
+  }
+  next();
+});
+
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
