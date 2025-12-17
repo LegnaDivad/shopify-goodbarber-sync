@@ -114,4 +114,19 @@ router.get('/shopify/callback', async (req, res) => {
   return res.status(200).send('OK - Shopify connected. You can close this window.');
 });
 
+router.get('/shopify/installed', async (req, res) => {
+  const shop = req.query.shop;
+  if (!isValidShopDomain(shop)) return res.status(400).send('Invalid shop domain');
+
+  const r = await pool.query(
+    `select shop_domain, scope, installed_at, updated_at from public.shopify_store_token where shop_domain=$1`,
+    [shop]
+  );
+
+  if (!r.rowCount) return res.status(404).json({ ok: false, shop, installed: false });
+
+  return res.json({ ok: true, shop, installed: true, ...r.rows[0] });
+});
+
+
 module.exports = router;
