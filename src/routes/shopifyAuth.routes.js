@@ -156,6 +156,21 @@ router.get('/shopify/debug', async (req, res) => {
   });
 });
 
+router.get('/shopify/dbinfo', async (req, res) => {
+  const db = await pool.query('select current_database() as db, current_user as user, now() as now');
+  const c1 = await pool.query('select count(*)::int as count from public.shopify_store_token');
+  const c2 = await pool.query('select count(*)::int as count from public.shopify_oauth_state');
+  res.json({
+    ok: true,
+    db: db.rows[0],
+    counts: {
+      shopify_store_token: c1.rows[0].count,
+      shopify_oauth_state: c2.rows[0].count,
+    }
+  });
+});
+
+
 
 
 module.exports = router;
