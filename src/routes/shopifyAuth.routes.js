@@ -128,5 +128,34 @@ router.get('/shopify/installed', async (req, res) => {
   return res.json({ ok: true, shop, installed: true, ...r.rows[0] });
 });
 
+router.get('/shopify/debug', async (req, res) => {
+  const shop = req.query.shop;
+
+  const tokenRow = await pool.query(
+    `select shop_domain, scope, installed_at, updated_at
+     from public.shopify_store_token
+     where shop_domain=$1`,
+    [shop]
+  );
+
+  const states = await pool.query(
+    `select state, created_at, consumed_at
+     from public.shopify_oauth_state
+     where shop_domain=$1
+     order by created_at desc
+     limit 10`,
+    [shop]
+  );
+
+  return res.json({
+    ok: true,
+    shop,
+    hasToken: Boolean(tokenRow.rowCount),
+    tokenMeta: tokenRow.rowCount ? tokenRow.rows[0] : null,
+    recentStates: states.rows,
+  });
+});
+
+
 
 module.exports = router;
