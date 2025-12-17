@@ -1,5 +1,4 @@
 const { getShopifyAccessToken } = require('./services/shopifyTokenStore');
-const { listProducts } = require('./services/shopifyAdmin');
 
 
 const dns = require('dns');
