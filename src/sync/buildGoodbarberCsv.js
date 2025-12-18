@@ -11,9 +11,9 @@ function buildRowsFromShopify(products) {
     const productSlug = p.handle ? p.handle : slugify(productTitle);
     const productSummary = truncate(stripHtml(p.body_html || ''), 240);
     const productBrand = p.vendor || '';
-    // Tomamos las etiquetas desde Shopify pero limitadas a una sola (la primera).
+    // Tomamos las etiquetas desde Shopify pero limitadas a un máximo de 10.
     const shopifyTags = parseTags(p.tags || '');
-    const productTags = shopifyTags[0] || '';
+    const productTags = shopifyTags.slice(0, 10).join(',');
     const productCollections = '';
 
     const productImage = (p.image && p.image.src) ? p.image.src : '';
