@@ -11,14 +11,9 @@ function buildRowsFromShopify(products) {
     const productSlug = p.handle ? p.handle : slugify(productTitle);
     const productSummary = truncate(stripHtml(p.body_html || ''), 240);
     const productBrand = p.vendor || '';
-    const productTags = parseTags(p.tags || '').join(',');
-    const productCollections = Array.isArray(p.collections)
-      ? p.collections
-          .map(c => (typeof c === 'string' ? c : (c && c.title) || ''))
-          .map(t => String(t).trim())
-          .filter(Boolean)
-          .join(',')
-      : '';
+    // Por ahora desactivamos el envío de tags y colecciones a GoodBarber
+    const productTags = '';
+    const productCollections = '';
 
     const productImage = (p.image && p.image.src) ? p.image.src : '';
 
