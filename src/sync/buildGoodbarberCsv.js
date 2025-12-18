@@ -11,9 +11,9 @@ function buildRowsFromShopify(products) {
     const productSlug = p.handle ? p.handle : slugify(productTitle);
     const productSummary = truncate(stripHtml(p.body_html || ''), 240);
     const productBrand = p.vendor || '';
-    // Para evitar el error de "Inconsistencia" en GoodBarber, usamos una tag muy simple:
-    // solo la marca del producto como única etiqueta.
-    const productTags = productBrand || '';
+    // Tomamos las etiquetas desde Shopify pero limitadas a una sola (la primera).
+    const shopifyTags = parseTags(p.tags || '');
+    const productTags = shopifyTags[0] || '';
     const productCollections = '';
 
     const productImage = (p.image && p.image.src) ? p.image.src : '';
