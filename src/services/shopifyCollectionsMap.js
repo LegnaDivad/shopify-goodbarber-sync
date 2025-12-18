@@ -1,7 +1,15 @@
-const { shopifyFetch } = require('./shopifyAdmin');
+const { shopifyGraphql } = require('./shopifyGraphql');
 
+function chunk(arr, size) {
+  const out = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+// Usa Admin GraphQL para obtener las colecciones de muchos productos en pocas llamadas,
+// evitando el límite "2 calls per second" de REST /collects.
 async function fetchCollectionsByProductIds(shopDomain, accessToken, productIdsInput) {
-  const ids = Array.from(
+  const numericIds = Array.from(
     new Set(
       (productIdsInput || [])
         .map(id => Number(id))
@@ -10,101 +18,37 @@ async function fetchCollectionsByProductIds(shopDomain, accessToken, productIdsI
   );
 
   const result = new Map();
-  if (!ids.length) return result;
+  if (!numericIds.length) return result;
 
-  const productToCollectionIds = new Map();
-  for (const id of ids) {
-    productToCollectionIds.set(id, new Set());
-  }
+  // Convierte a GIDs de producto para GraphQL
+  const gids = numericIds.map(id => `gid://shopify/Product/${id}`);
 
-  const allCollectionIds = new Set();
-
-  // 1) Collects por producto -> collection_ids
-  for (const productId of ids) {
-    const data = await shopifyFetch(
-      shopDomain,
-      accessToken,
-      `/collects.json?product_id=${productId}&limit=250`
-    );
-
-    const collects = Array.isArray(data?.collects) ? data.collects : [];
-    for (const c of collects) {
-      const cid = Number(c.collection_id);
-      if (!Number.isFinite(cid)) continue;
-      allCollectionIds.add(cid);
-      const set = productToCollectionIds.get(productId);
-      if (set) set.add(cid);
+  const query = `
+    query ProductsCollections($ids: [ID!]!) {
+      nodes(ids: $ids) {
+        ... on Product {
+          id
+          collections(first: 50) {
+            nodes { title handle }
+          }
+        }
+      }
     }
-  }
+  `;
 
-  if (!allCollectionIds.size) {
-    for (const id of ids) {
-      result.set(id, { titles: [], handles: [] });
-    }
-    return result;
-  }
+  for (const group of chunk(gids, 50)) {
+    const data = await shopifyGraphql(shopDomain, accessToken, query, { ids: group });
 
-  // 2) Fetch metadatos de colecciones (custom + smart)
-  const collectionMeta = new Map(); // id -> { title, handle }
-  const chunkSize = 50;
-  const allIdsArr = Array.from(allCollectionIds);
+    for (const node of data.nodes || []) {
+      if (!node?.id) continue;
+      const numericId = Number(String(node.id).split('/').pop());
+      const cols = node.collections?.nodes || [];
 
-  for (let i = 0; i < allIdsArr.length; i += chunkSize) {
-    const chunk = allIdsArr.slice(i, i + chunkSize);
-    const idsParam = chunk.join(',');
-
-    // Custom collections
-    const customRes = await shopifyFetch(
-      shopDomain,
-      accessToken,
-      `/custom_collections.json?ids=${idsParam}&limit=250`
-    );
-    const customCols = Array.isArray(customRes?.custom_collections)
-      ? customRes.custom_collections
-      : [];
-
-    for (const col of customCols) {
-      const id = Number(col.id);
-      if (!Number.isFinite(id)) continue;
-      collectionMeta.set(id, {
-        title: col.title || '',
-        handle: col.handle || ''
+      result.set(numericId, {
+        titles: cols.map(c => c.title).filter(Boolean),
+        handles: cols.map(c => c.handle).filter(Boolean),
       });
     }
-
-    // Smart collections
-    const smartRes = await shopifyFetch(
-      shopDomain,
-      accessToken,
-      `/smart_collections.json?ids=${idsParam}&limit=250`
-    );
-    const smartCols = Array.isArray(smartRes?.smart_collections)
-      ? smartRes.smart_collections
-      : [];
-
-    for (const col of smartCols) {
-      const id = Number(col.id);
-      if (!Number.isFinite(id)) continue;
-      collectionMeta.set(id, {
-        title: col.title || '',
-        handle: col.handle || ''
-      });
-    }
-  }
-
-  // 3) Construir resultado: productId -> { titles, handles }
-  for (const [productId, colIdsSet] of productToCollectionIds.entries()) {
-    const titles = [];
-    const handles = [];
-
-    for (const cid of colIdsSet) {
-      const meta = collectionMeta.get(cid);
-      if (!meta) continue;
-      if (meta.title) titles.push(meta.title);
-      if (meta.handle) handles.push(meta.handle);
-    }
-
-    result.set(productId, { titles, handles });
   }
 
   return result;
