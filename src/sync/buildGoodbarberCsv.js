@@ -1,6 +1,7 @@
 const { stringify } = require('csv-stringify/sync');
 const slugify = require('../utils/slugify');
 const toGoodbarberOptions = require('../utils/goodbarberOptions');
+const { stripHtml, truncate } = require('../utils/transform');
 
 function buildRowsFromShopify(products) {
   const rows = [];
@@ -8,6 +9,7 @@ function buildRowsFromShopify(products) {
   for (const p of products) {
     const productTitle = p.title || '';
     const productSlug = p.handle ? p.handle : slugify(productTitle);
+    const productSummary = truncate(stripHtml(p.body_html || ''), 240);
 
     const productImage = (p.image && p.image.src) ? p.image.src : '';
 
@@ -25,7 +27,7 @@ function buildRowsFromShopify(products) {
         product_id: '',                 // vacío para altas nuevas en GoodBarber
         variant_id: '',                 // vacío para altas nuevas en GoodBarber
         product_title: productTitle,
-        product_summary: '',
+        product_summary: productSummary,
         product_url_slug: productSlug,
         variant_options: toGoodbarberOptions(p, v), // [[size:36]][[color:red]]
         variant_stock: stock,
