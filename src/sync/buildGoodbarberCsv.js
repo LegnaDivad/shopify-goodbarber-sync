@@ -10,6 +10,7 @@ function buildRowsFromShopify(products) {
     const productTitle = p.title || '';
     const productSlug = p.handle ? p.handle : slugify(productTitle);
     const productSummary = truncate(stripHtml(p.body_html || ''), 240);
+    const productBrand = p.vendor || '';
 
     const productImage = (p.image && p.image.src) ? p.image.src : '';
 
@@ -28,6 +29,7 @@ function buildRowsFromShopify(products) {
         variant_id: '',                 // vacío para altas nuevas en GoodBarber
         product_title: productTitle,
         product_summary: productSummary,
+        product_brand: productBrand,
         product_url_slug: productSlug,
         variant_options: toGoodbarberOptions(p, v), // [[size:36]][[color:red]]
         variant_stock: stock,
@@ -50,6 +52,7 @@ function buildGoodbarberCsv(rows) {
     'variant_id',
     'product_title',
     'product_summary',
+    'product_brand',
     'product_url_slug',
     'variant_options',
     'variant_stock',
