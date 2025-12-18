@@ -115,13 +115,27 @@ app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
     const products = data.products || [];
 
     // Enriquecer productos con títulos de colecciones para el CSV GoodBarber
-    const productIds = products.map(p => p.id).filter(id => Number.isFinite(Number(id)));
-    const collectionsMap = await fetchCollectionsByProductIds(shopDomain, accessToken, productIds);
+    // Si algo falla al obtener colecciones, seguimos adelante sin romper el export.
+    try {
+      const productIds = products
+        .map(p => p.id)
+        .filter(id => Number.isFinite(Number(id)));
 
-    for (const p of products) {
-      const pid = Number(p.id);
-      const colInfo = collectionsMap.get(pid) || { titles: [] };
-      p.collections = colInfo.titles || [];
+      if (productIds.length) {
+        const collectionsMap = await fetchCollectionsByProductIds(
+          shopDomain,
+          accessToken,
+          productIds
+        );
+
+        for (const p of products) {
+          const pid = Number(p.id);
+          const colInfo = collectionsMap.get(pid) || { titles: [] };
+          p.collections = colInfo.titles || [];
+        }
+      }
+    } catch (err) {
+      console.error('[WARN] Failed to enrich products with collections', err);
     }
 
     const rows = buildRowsFromShopify(products);
