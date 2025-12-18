@@ -1,7 +1,7 @@
 const { stringify } = require('csv-stringify/sync');
 const slugify = require('../utils/slugify');
 const toGoodbarberOptions = require('../utils/goodbarberOptions');
-const { stripHtml, truncate } = require('../utils/transform');
+const { stripHtml, truncate, parseTags } = require('../utils/transform');
 
 function buildRowsFromShopify(products) {
   const rows = [];
@@ -11,6 +11,7 @@ function buildRowsFromShopify(products) {
     const productSlug = p.handle ? p.handle : slugify(productTitle);
     const productSummary = truncate(stripHtml(p.body_html || ''), 240);
     const productBrand = p.vendor || '';
+    const productTags = parseTags(p.tags || '').join(',');
 
     const productImage = (p.image && p.image.src) ? p.image.src : '';
 
@@ -30,6 +31,7 @@ function buildRowsFromShopify(products) {
         product_title: productTitle,
         product_summary: productSummary,
         product_brand: productBrand,
+        product_tags: productTags,
         product_url_slug: productSlug,
         variant_options: toGoodbarberOptions(p, v), // [[size:36]][[color:red]]
         variant_stock: stock,
@@ -53,6 +55,7 @@ function buildGoodbarberCsv(rows) {
     'product_title',
     'product_summary',
     'product_brand',
+    'product_tags',
     'product_url_slug',
     'variant_options',
     'variant_stock',
