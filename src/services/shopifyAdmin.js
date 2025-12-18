@@ -22,4 +22,4 @@ async function listProducts(shopDomain, accessToken, limit = 250) {
   return shopifyFetch(shopDomain, accessToken, `/products.json?limit=${limit}`);
 }
 
-module.exports = { listProducts };
+module.exports = { listProducts, shopifyFetch };

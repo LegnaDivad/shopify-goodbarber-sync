@@ -89,6 +89,7 @@ const shopifyWebhooks = require('./webhooks/shopify.webhooks');
 app.use('/webhooks', shopifyWebhooks);
 
 const { listProducts } = require('./services/shopifyAdmin');
+const { fetchCollectionsByProductIds } = require('./services/shopifyCollectionsMap');
 const { buildRowsFromShopify, buildGoodbarberCsv } = require('./sync/buildGoodbarberCsv');
 
 // Rutas de autenticación Shopify
@@ -112,6 +113,16 @@ app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
 
     const data = await listProducts(shopDomain, accessToken, 250);
     const products = data.products || [];
+
+    // Enriquecer productos con títulos de colecciones para el CSV GoodBarber
+    const productIds = products.map(p => p.id).filter(id => Number.isFinite(Number(id)));
+    const collectionsMap = await fetchCollectionsByProductIds(shopDomain, accessToken, productIds);
+
+    for (const p of products) {
+      const pid = Number(p.id);
+      const colInfo = collectionsMap.get(pid) || { titles: [] };
+      p.collections = colInfo.titles || [];
+    }
 
     const rows = buildRowsFromShopify(products);
     const csv = buildGoodbarberCsv(rows);
