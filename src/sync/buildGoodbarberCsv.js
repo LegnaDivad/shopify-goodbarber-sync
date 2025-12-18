@@ -11,9 +11,11 @@ function buildRowsFromShopify(products) {
     const productSlug = p.handle ? p.handle : slugify(productTitle);
     const productSummary = truncate(stripHtml(p.body_html || ''), 240);
     const productBrand = p.vendor || '';
-    // Tomamos las etiquetas desde Shopify pero limitadas a un máximo de 2
+    // Tomamos las etiquetas desde Shopify pero limitadas a un máximo de 5.
+    // Usamos '|' como separador interno para no chocar con el delimitador ';'
+    // que usa el CSV de GoodBarber ni con comas dentro del campo.
     const shopifyTags = parseTags(p.tags || '');
-    const productTags = shopifyTags.slice(0, 2).join(';');
+    const productTags = shopifyTags.slice(0, 5).join('|');
     const productCollections = '';
 
     const productImage = (p.image && p.image.src) ? p.image.src : '';
