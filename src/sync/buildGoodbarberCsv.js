@@ -1,7 +1,7 @@
 const { stringify } = require('csv-stringify/sync');
 const slugify = require('../utils/slugify');
 const toGoodbarberOptions = require('../utils/goodbarberOptions');
-const { stripHtml, truncate } = require('../utils/transform');
+const { stripHtml } = require('../utils/transform');
 
 function buildRowsFromShopify(products) {
   const rows = [];
@@ -9,7 +9,7 @@ function buildRowsFromShopify(products) {
   for (const p of products) {
     const productTitle = p.title || '';
     const productSlug = p.handle ? p.handle : slugify(productTitle);
-    const productSummary = truncate(stripHtml(p.body_html || ''), 240);
+    const productSummary = stripHtml(p.body_html || '');
 
     const productImage = (p.image && p.image.src) ? p.image.src : '';
 
