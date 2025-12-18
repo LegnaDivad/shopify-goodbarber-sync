@@ -25,6 +25,7 @@ function buildRowsFromShopify(products) {
         product_id: '',                 // vacío para altas nuevas en GoodBarber
         variant_id: '',                 // vacío para altas nuevas en GoodBarber
         product_title: productTitle,
+        product_summary: '',
         product_url_slug: productSlug,
         variant_options: toGoodbarberOptions(p, v), // [[size:36]][[color:red]]
         variant_stock: stock,
@@ -46,6 +47,7 @@ function buildGoodbarberCsv(rows) {
     'product_id',
     'variant_id',
     'product_title',
+    'product_summary',
     'product_url_slug',
     'variant_options',
     'variant_stock',
