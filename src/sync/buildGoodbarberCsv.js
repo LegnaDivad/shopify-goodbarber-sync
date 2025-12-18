@@ -13,7 +13,7 @@ function buildRowsFromShopify(products) {
     const productBrand = p.vendor || '';
     // Tomamos las etiquetas desde Shopify pero limitadas a un máximo de 2
     const shopifyTags = parseTags(p.tags || '');
-    const productTags = shopifyTags.slice(0, 2).join(',');
+    const productTags = shopifyTags.slice(0, 2).join(';');
     const productCollections = '';
 
     const productImage = (p.image && p.image.src) ? p.image.src : '';
