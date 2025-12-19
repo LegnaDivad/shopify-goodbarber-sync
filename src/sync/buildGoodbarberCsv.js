@@ -16,7 +16,15 @@ function buildRowsFromShopify(products) {
     // (tag1/tag2/tag3), que sí acepta múltiples valores.
     const shopifyTags = parseTags(p.tags || '');
     const productTags = shopifyTags.slice(0, 5).join('/');
-    const productCollections = '';
+
+    // Colecciones: usamos los títulos de las colecciones de Shopify, limitadas a 5
+    // y separadas con '/': Collection1/Collection2/Collection3
+    const shopifyCollections = Array.isArray(p.collections) ? p.collections : [];
+    const productCollections = shopifyCollections
+      .map(c => (c && (c.title || c.name || '').trim()) || '')
+      .filter(Boolean)
+      .slice(0, 5)
+      .join('/');
 
     const productImage = (p.image && p.image.src) ? p.image.src : '';
 
