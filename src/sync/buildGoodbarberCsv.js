@@ -30,36 +30,24 @@ function buildRowsFromShopify(products) {
       .slice(0, 5)
       .join('/');
 
-    const productImages = Array.isArray(p.images)
-      ? p.images.filter(img => img && img.src)
-      : [];
-
-    const mainProductImage = (p.image && p.image.src)
-      ? p.image.src
-      : (productImages[0] && productImages[0].src) || '';
+    const productImage = (p.image && p.image.src) ? p.image.src : '';
 
     const variants = Array.isArray(p.variants) ? p.variants : [];
-    variants.forEach((v, index) => {
+    for (const v of variants) {
       // Stock
       // Si Shopify no trackea inventario: normalmente inventory_management = null
       const stock =
         v.inventory_management ? String(v.inventory_quantity ?? 0) : 'Unlimited';
 
-      // Imagen de galería del producto: repartimos las imágenes de Shopify
-      // entre las variantes para rellenar product_pict_url y product_pict_position
-      const galleryImage = productImages[index];
-      const productPictUrl = galleryImage ? galleryImage.src : mainProductImage;
-      const productPictPosition = galleryImage ? String(index + 1) : '';
-
-      // Imagen variante: si la variante tiene image_id e identificamos la imagen,
-      // usamos esa; si no, caemos a la imagen principal del producto.
-      let variantImage = mainProductImage;
-      if (v.image_id && productImages.length) {
-        const matched = productImages.find(img => String(img.id) === String(v.image_id));
-        if (matched && matched.src) {
-          variantImage = matched.src;
-        }
+      // Peso variante: usamos el campo weight de Shopify tal cual (número)
+      // para que GoodBarber lo interprete según la unidad configurada.
+      let variantWeight = '';
+      if (v.weight != null && !Number.isNaN(Number(v.weight))) {
+        variantWeight = String(Number(v.weight));
       }
+
+      // Imagen variante (si existe), si no fallback a la del producto
+      const variantImage = v.image_id ? productImage : productImage;
 
       rows.push({
         product_id: '',                 // vacío para altas nuevas en GoodBarber
@@ -73,14 +61,14 @@ function buildRowsFromShopify(products) {
         variant_options: toGoodbarberOptions(p, v), // [[size:36]][[color:red]]
         variant_stock: stock,
         variant_sku: v.sku || '',
-        variant_weight: v.weight != null ? String(v.weight) : '',
         variant_price: v.price || '',
-        // Imágenes: principal + galería con posiciones 1..n
-        product_pict_url: productPictUrl,
-        product_pict_position: productPictPosition,
+        variant_weight: variantWeight,
+        // Opcionales imágenes:
+        product_pict_url: productImage,
+        product_pict_position: '',      // opcional (1..n)
         variant_pict_url: variantImage,
       });
-    });
+    }
   }
 
   return rows;
@@ -99,8 +87,8 @@ function buildGoodbarberCsv(rows) {
     'variant_options',
     'variant_stock',
     'variant_sku',
-    'variant_weight',
     'variant_price',
+    'variant_weight',
     'product_pict_url',
     'product_pict_position',
     'variant_pict_url',
