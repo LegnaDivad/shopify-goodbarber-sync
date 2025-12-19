@@ -21,7 +21,11 @@ function buildRowsFromShopify(products) {
     // y separadas con '/': Collection1/Collection2/Collection3
     const shopifyCollections = Array.isArray(p.collections) ? p.collections : [];
     const productCollections = shopifyCollections
-      .map(c => (c && (c.title || c.name || '').trim()) || '')
+      .map(c => {
+        if (!c) return '';
+        if (typeof c === 'string') return c.trim();
+        return (c.title || c.name || '').trim();
+      })
       .filter(Boolean)
       .slice(0, 5)
       .join('/');
