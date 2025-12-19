@@ -30,10 +30,22 @@ function buildRowsFromShopify(products) {
       .slice(0, 5)
       .join('/');
 
-    const productImage = (p.image && p.image.src) ? p.image.src : '';
+    const productImages = Array.isArray(p.images) ? p.images : [];
+    const primaryImage = (p.image && p.image.src)
+      ? p.image.src
+      : (productImages[0] && productImages[0].src) ? productImages[0].src : '';
+
+    // Mapa auxiliar para encontrar la imagen asociada a una variante por image_id
+    const imagesById = new Map();
+    for (const img of productImages) {
+      if (img && img.id && img.src) {
+        imagesById.set(img.id, img.src);
+      }
+    }
 
     const variants = Array.isArray(p.variants) ? p.variants : [];
-    for (const v of variants) {
+    for (let idx = 0; idx < variants.length; idx += 1) {
+      const v = variants[idx];
       // Stock
       // Si Shopify no trackea inventario: normalmente inventory_management = null
       const stock =
@@ -46,8 +58,19 @@ function buildRowsFromShopify(products) {
         variantWeight = String(Number(v.weight));
       }
 
-      // Imagen variante (si existe), si no fallback a la del producto
-      const variantImage = v.image_id ? productImage : productImage;
+      // Imagen del producto para esta fila: repartimos las imágenes del array p.images
+      // entre las filas de variantes usando el índice (1 -> posición 1, etc.).
+      const imageForRow = productImages[idx] || null;
+      const productPictUrl = imageForRow && imageForRow.src ? imageForRow.src : '';
+      const productPictPosition = imageForRow
+        ? (imageForRow.position || idx + 1)
+        : '';
+
+      // Imagen variante (si existe una asociada por image_id), si no, la principal
+      let variantImage = primaryImage;
+      if (v.image_id && imagesById.has(v.image_id)) {
+        variantImage = imagesById.get(v.image_id);
+      }
 
       rows.push({
         product_id: '',                 // vacío para altas nuevas en GoodBarber
@@ -64,8 +87,8 @@ function buildRowsFromShopify(products) {
         variant_price: v.price || '',
         variant_weight: variantWeight,
         // Opcionales imágenes:
-        product_pict_url: productImage,
-        product_pict_position: '',      // opcional (1..n)
+        product_pict_url: productPictUrl,
+        product_pict_position: productPictPosition,      // opcional (1..n)
         variant_pict_url: variantImage,
       });
     }
