@@ -20,6 +20,19 @@ async function insertShopifyWebhookEvent(evt) {
   ];
 
   await pool.query(sql, params);
+
+  // Marcar la tienda como "dirty" para disparar syncs posteriores.
+  if (evt.shopDomain) {
+    await pool.query(
+      `
+      insert into public.shopify_shop_dirty (shop_domain, dirty_at, updated_at)
+      values ($1, now(), now())
+      on conflict (shop_domain)
+      do update set dirty_at = excluded.dirty_at, updated_at = excluded.updated_at
+      `,
+      [evt.shopDomain]
+    );
+  }
 }
 
 module.exports = { insertShopifyWebhookEvent };
