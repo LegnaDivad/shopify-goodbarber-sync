@@ -161,3 +161,46 @@ app.use((err, req, res, next) => {
 app.listen(PORT, () => {
   console.log(`Service listening on port ${PORT}`);
 });
+
+/**
+ * Export CSV latest (GoodBarber)
+ */
+
+const { resolveShopDomain } = require('./services/shopifyShopResolver');
+const { pool } = require('./config/db');
+
+app.get('/exports/goodbarber/latest.csv', async (req, res, next) => {
+  try {
+    const key = req.header('x-export-key');
+    if (!process.env.EXPORT_KEY || key !== process.env.EXPORT_KEY) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const inputShop = req.query.shop;
+    if (!inputShop) return res.status(400).json({ error: 'Missing ?shop=' });
+
+    const shopDomain = await resolveShopDomain(inputShop);
+    if (!shopDomain) return res.status(404).json({ error: 'Unknown shop/alias', inputShop });
+
+    const r = await pool.query(
+      `select csv_text, generated_at, products_count, csv_bytes
+       from public.goodbarber_export_latest
+       where shop_domain=$1`,
+      [shopDomain]
+    );
+
+    if (!r.rowCount) {
+      return res.status(404).json({ error: 'No latest export yet', shopDomain });
+    }
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="goodbarber_products_latest.csv"');
+    res.setHeader('X-Export-Generated-At', r.rows[0].generated_at.toISOString?.() || String(r.rows[0].generated_at));
+    res.setHeader('X-Export-Products-Count', String(r.rows[0].products_count ?? ''));
+    res.setHeader('X-Export-Bytes', String(r.rows[0].csv_bytes ?? ''));
+
+    return res.status(200).send(r.rows[0].csv_text);
+  } catch (err) {
+    next(err);
+  }
+});

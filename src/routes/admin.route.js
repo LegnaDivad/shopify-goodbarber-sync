@@ -93,16 +93,20 @@ router.post('/jobs/sync-latest', requireAdminKey, async (req, res, next) => {
 
     // Lock simple (si quieres robustez multi-worker, hacemos SELECT ... FOR UPDATE SKIP LOCKED)
     const lockId = crypto.randomUUID();
-    const lock = await pool.query(
-      `
-      update public.shopify_shop_dirty
-      set locked_at=now(), lock_id=$2, updated_at=now()
-      where shop_domain=$1
-        and (locked_at is null or locked_at < now() - interval '10 minutes')
-      returning shop_domain
-      `,
-      [shopDomain, lockId]
-    );
+    await pool.query(
+  `
+  insert into public.goodbarber_export_latest
+    (shop_domain, generated_at, products_count, csv_bytes, csv_text)
+  values ($1, now(), $2, $3, $4)
+  on conflict (shop_domain)
+  do update set
+    generated_at = excluded.generated_at,
+    products_count = excluded.products_count,
+    csv_bytes = excluded.csv_bytes,
+    csv_text = excluded.csv_text
+  `,
+  [shopDomain, products.length, Buffer.byteLength(csv, 'utf8'), csv]
+);
 
     // Si no hay dirty row, igual puedes generar (o devolver "nothing to do")
     // Aquí: si no lockea, devolvemos 409
