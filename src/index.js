@@ -73,7 +73,11 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-//Rutas de webhooks Shopify (handlers antiguos basados en verifyShopifyHmac)
+app.listen(PORT, () => {
+  console.log(`Service listening on port ${PORT}`);
+});
+
+//Rutas de webhooks Shopify
 const shopifyWebhooksRouter = require('./webhooks/shopify.routes');
 app.use('/webhooks/shopify', shopifyWebhooksRouter);
 
@@ -81,7 +85,7 @@ app.use('/webhooks/shopify', shopifyWebhooksRouter);
 const goodbarberTestRoutes = require('./routes/goodbarberTest.routes');
 app.use(goodbarberTestRoutes);
 
-// Rutas de webhooks (nuevo handler con HMAC raw + queue en DB)
+// Rutas de webhooks
 const shopifyWebhooks = require('./webhooks/shopify.webhooks');
 app.use('/webhooks', shopifyWebhooks);
 
@@ -147,8 +151,7 @@ app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
 });
 
 const adminRoutes = require('./routes/admin.route');
+
+app.use('/webhooks', shopifyWebhooksRoutes);
 app.use('/admin', adminRoutes);
 
-app.listen(PORT, () => {
-  console.log(`Service listening on port ${PORT}`);
-});
