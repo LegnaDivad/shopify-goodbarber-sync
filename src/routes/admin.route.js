@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { pool } = require('../config/db');
 const { getShopifyAccessToken } = require('../services/shopifyTokenStore');
 const { listWebhooks, createWebhook } = require('../services/shopifyWebhooks');
-const { listProducts } = require('../services/shopifyAdmin');
+const { listAllProducts } = require('../services/shopifyAdmin'); // ✅ CAMBIO
 const { buildRowsFromShopify, buildGoodbarberCsv } = require('../sync/buildGoodbarberCsv');
 const { resolveShopDomain } = require('../services/shopifyShopResolver');
 
@@ -64,7 +64,7 @@ router.post('/shopify/webhooks/register', requireAdminKey, async (req, res, next
   }
 });
 
-// (Opcional pero recomendado) list
+// list
 router.get('/shopify/webhooks/list', requireAdminKey, async (req, res, next) => {
   try {
     const inputShop = req.query.shop;
@@ -82,34 +82,27 @@ router.get('/shopify/webhooks/list', requireAdminKey, async (req, res, next) => 
   }
 });
 
-
 router.post('/jobs/sync-latest', requireAdminKey, async (req, res, next) => {
   try {
-    const inputShop = req.query.shop; // puede ser alias
+    const inputShop = req.query.shop;
     if (!inputShop) return res.status(400).json({ error: 'Missing ?shop=' });
 
     const { shopDomain, accessToken } = await getShopifyAccessToken(inputShop);
     if (!shopDomain || !accessToken) return res.status(404).json({ error: 'Shop not installed', inputShop });
 
-    // Lock simple (si quieres robustez multi-worker, hacemos SELECT ... FOR UPDATE SKIP LOCKED)
+    // Lock simple
     const lockId = crypto.randomUUID();
-    await pool.query(
-  `
-  insert into public.goodbarber_export_latest
-    (shop_domain, generated_at, products_count, csv_bytes, csv_text)
-  values ($1, now(), $2, $3, $4)
-  on conflict (shop_domain)
-  do update set
-    generated_at = excluded.generated_at,
-    products_count = excluded.products_count,
-    csv_bytes = excluded.csv_bytes,
-    csv_text = excluded.csv_text
-  `,
-  [shopDomain, products.length, Buffer.byteLength(csv, 'utf8'), csv]
-);
+    const lock = await pool.query(
+      `
+      update public.shopify_shop_dirty
+      set locked_at=now(), lock_id=$2, updated_at=now()
+      where shop_domain=$1
+        and (locked_at is null or locked_at < now() - interval '10 minutes')
+      returning shop_domain
+      `,
+      [shopDomain, lockId]
+    );
 
-    // Si no hay dirty row, igual puedes generar (o devolver "nothing to do")
-    // Aquí: si no lockea, devolvemos 409
     if (!lock.rowCount) {
       return res.status(409).json({ ok: false, shopDomain, reason: 'locked or not dirty' });
     }
@@ -121,9 +114,8 @@ router.post('/jobs/sync-latest', requireAdminKey, async (req, res, next) => {
     );
     const runId = run.rows[0].id;
 
-    // 2) Generar CSV (reusando tu pipeline actual)
-    const data = await listProducts(shopDomain, accessToken, 250);
-    const products = data.products || [];
+    // 2) Generar CSV (✅ CAMBIO: traer TODO con paginación)
+    const products = await listAllProducts(shopDomain, accessToken, 250);
     const rows = buildRowsFromShopify(products);
     const csv = buildGoodbarberCsv(rows);
 
@@ -133,7 +125,11 @@ router.post('/jobs/sync-latest', requireAdminKey, async (req, res, next) => {
       insert into public.goodbarber_export_latest (shop_domain, generated_at, products_count, csv_bytes, csv_text)
       values ($1, now(), $2, $3, $4)
       on conflict (shop_domain)
-      do update set generated_at=excluded.generated_at, products_count=excluded.products_count, csv_bytes=excluded.csv_bytes, csv_text=excluded.csv_text
+      do update set
+        generated_at=excluded.generated_at,
+        products_count=excluded.products_count,
+        csv_bytes=excluded.csv_bytes,
+        csv_text=excluded.csv_text
       `,
       [shopDomain, products.length, Buffer.byteLength(csv, 'utf8'), csv]
     );
@@ -148,10 +144,12 @@ router.post('/jobs/sync-latest', requireAdminKey, async (req, res, next) => {
       [shopDomain]
     );
 
-    // 5) Limpiar dirty + cerrar run
+    // 5) Limpiar dirty + cerrar run (✅ aquí ya estás guardando métricas)
     await pool.query(`delete from public.shopify_shop_dirty where shop_domain=$1`, [shopDomain]);
     await pool.query(
-      `update public.shopify_sync_run set status='ok', finished_at=now(), products_count=$2, csv_bytes=$3 where id=$1`,
+      `update public.shopify_sync_run
+       set status='ok', finished_at=now(), products_count=$2, csv_bytes=$3
+       where id=$1`,
       [runId, products.length, Buffer.byteLength(csv, 'utf8')]
     );
 

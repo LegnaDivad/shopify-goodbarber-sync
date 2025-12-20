@@ -6,7 +6,7 @@ const express = require('express');
 
 const { testDb } = require('./config/db');
 const { getShopifyAccessToken } = require('./services/shopifyTokenStore');
-const { listProducts } = require('./services/shopifyAdmin');
+const { listAllProducts } = require('./services/shopifyAdmin'); // ✅ CAMBIO
 const { fetchCollectionsByProductIds } = require('./services/shopifyCollectionsMap');
 const { buildRowsFromShopify, buildGoodbarberCsv } = require('./sync/buildGoodbarberCsv');
 
@@ -94,7 +94,7 @@ app.use('/admin', adminRoutes);
 app.use(goodbarberTestRoutes);
 
 /**
- * Export CSV (GoodBarber)
+ * Export CSV (GoodBarber) - on demand
  */
 app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
   try {
@@ -110,8 +110,8 @@ app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
     if (!shopDomain) return res.status(404).json({ error: 'Unknown shop/alias', inputShop });
     if (!accessToken) return res.status(404).json({ error: 'Token not found for shop', shopDomain });
 
-    const data = await listProducts(shopDomain, accessToken, 250);
-    const products = data.products || [];
+    // ✅ CAMBIO: trae TODOS los productos (paginación)
+    const products = await listAllProducts(shopDomain, accessToken, 250);
 
     // Enriquecer con colecciones (best-effort)
     try {
@@ -165,7 +165,6 @@ app.listen(PORT, () => {
 /**
  * Export CSV latest (GoodBarber)
  */
-
 const { resolveShopDomain } = require('./services/shopifyShopResolver');
 const { pool } = require('./config/db');
 
