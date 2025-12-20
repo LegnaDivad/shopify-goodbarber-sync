@@ -38,6 +38,16 @@ router.post(
         [shopDomain, topic, webhookId, payload]
       );
 
+      await pool.query(
+        `
+        insert into public.shopify_shop_dirty (shop_domain, dirty_at, updated_at)
+        values ($1, now(), now())
+        on conflict (shop_domain)
+        do update set dirty_at = excluded.dirty_at, updated_at = excluded.updated_at
+        `,
+        [shopDomain]
+      );
+
       // Shopify espera 200 rápido
       return res.status(200).json({ ok: true });
     } catch (err) {
