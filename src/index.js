@@ -1,23 +1,38 @@
-const { getShopifyAccessToken } = require('./services/shopifyTokenStore');
-const shopifyWebhooksRoutes = require('./routes/shopifyWebhooks.routes');
-
-
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');
 
 require('dotenv').config();
 const express = require('express');
 
-const app = express();
-app.use(express.json({
-  verify: (req, res, buf) => {
-    // Guardar rawBody solo en rutas de webhooks Shopify
-    if (req.originalUrl.startsWith('/webhooks/shopify')) {
-      req.rawBody = buf; // Buffer
-    }
-  }
-}));
+const { testDb } = require('./config/db');
+const { getShopifyAccessToken } = require('./services/shopifyTokenStore');
+const { listProducts } = require('./services/shopifyAdmin');
+const { fetchCollectionsByProductIds } = require('./services/shopifyCollectionsMap');
+const { buildRowsFromShopify, buildGoodbarberCsv } = require('./sync/buildGoodbarberCsv');
 
+const shopifyAuthRoutes = require('./routes/shopifyAuth.routes');
+const adminRoutes = require('./routes/admin.route');
+const goodbarberTestRoutes = require('./routes/goodbarberTest.routes');
+
+// ✅ Webhooks: usa SOLO un router
+const shopifyWebhooks = require('./webhooks/shopify.webhooks');
+
+const app = express();
+
+/**
+ * ✅ 1) Monta webhooks ANTES del express.json global
+ * Esto garantiza que el endpoint webhook pueda leer el RAW body.
+ */
+app.use('/webhooks', shopifyWebhooks);
+
+/**
+ * ✅ 2) JSON parser global para el resto de rutas (NO webhooks)
+ */
+app.use(express.json());
+
+/**
+ * Logs para auth
+ */
 app.use((req, res, next) => {
   if (req.path.startsWith('/auth/shopify')) {
     console.log('[SHOPIFY_AUTH]', req.method, req.originalUrl);
@@ -27,14 +42,16 @@ app.use((req, res, next) => {
 
 const PORT = process.env.PORT || 3000;
 
+/**
+ * Healthchecks
+ */
 app.get('/health', (req, res) => {
   return res.status(200).json({
     status: 'ok',
     service: 'shopify-goodbarber-sync',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
-const { testDb } = require('./config/db');
 
 app.get('/health/db', async (req, res) => {
   try {
@@ -55,6 +72,9 @@ app.get('/health/db', async (req, res) => {
   }
 });
 
+/**
+ * Shopify status
+ */
 app.get('/auth/shopify/status', (req, res) => {
   res.json({
     ok: true,
@@ -66,38 +86,16 @@ app.get('/auth/shopify/status', (req, res) => {
   });
 });
 
-
-// Error handler mínimo
-app.use((err, req, res, next) => {
-  console.error('[ERROR]', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-app.listen(PORT, () => {
-  console.log(`Service listening on port ${PORT}`);
-});
-
-//Rutas de webhooks Shopify
-const shopifyWebhooksRouter = require('./webhooks/shopify.routes');
-app.use('/webhooks/shopify', shopifyWebhooksRouter);
-
-//Rutas de test GoodBarber
-const goodbarberTestRoutes = require('./routes/goodbarberTest.routes');
+/**
+ * Rutas principales
+ */
+app.use('/auth', shopifyAuthRoutes);
+app.use('/admin', adminRoutes);
 app.use(goodbarberTestRoutes);
 
-// Rutas de webhooks
-const shopifyWebhooks = require('./webhooks/shopify.webhooks');
-app.use('/webhooks', shopifyWebhooks);
-
-const { listProducts } = require('./services/shopifyAdmin');
-const { fetchCollectionsByProductIds } = require('./services/shopifyCollectionsMap');
-const { buildRowsFromShopify, buildGoodbarberCsv } = require('./sync/buildGoodbarberCsv');
-
-// Rutas de autenticación Shopify
-const shopifyAuthRoutes = require('./routes/shopifyAuth.routes');
-app.use('/auth', shopifyAuthRoutes);
-
-// Export CSV (GoodBarber)
+/**
+ * Export CSV (GoodBarber)
+ */
 app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
   try {
     const key = req.header('x-export-key');
@@ -115,8 +113,7 @@ app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
     const data = await listProducts(shopDomain, accessToken, 250);
     const products = data.products || [];
 
-    // Enriquecer productos con títulos de colecciones para el CSV GoodBarber
-    // Si algo falla al obtener colecciones, seguimos adelante sin romper el export.
+    // Enriquecer con colecciones (best-effort)
     try {
       const productIds = products
         .map(p => p.id)
@@ -150,8 +147,17 @@ app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
   }
 });
 
-const adminRoutes = require('./routes/admin.route');
+/**
+ * ✅ Error handler AL FINAL
+ */
+app.use((err, req, res, next) => {
+  console.error('[ERROR]', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
-app.use('/webhooks', shopifyWebhooksRoutes);
-app.use('/admin', adminRoutes);
-
+/**
+ * ✅ Listen AL FINAL
+ */
+app.listen(PORT, () => {
+  console.log(`Service listening on port ${PORT}`);
+});
