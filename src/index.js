@@ -152,5 +152,5 @@ app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
 
 const adminRoutes = require('./routes/admin.route');
 
-app.use('/webhooks', shopifyWebhooksRoutes);
+app.use('/webhooks', require('./webhooks/shopify.webhooks'));
 app.use('/admin', adminRoutes);
