@@ -1,0 +1,19 @@
+name: Sync latest CSV (batch)
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger batch sync
+        run: |
+          set -e
+          curl -sS -X POST \
+            -H "x-admin-key: ${{ secrets.ADMIN_KEY }}" \
+            "https://shopify-goodbarber-sync.onrender.com/admin/jobs/sync-latest-all?limit=20" \
+            | tee result.json
