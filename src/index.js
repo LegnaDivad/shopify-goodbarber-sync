@@ -1,4 +1,5 @@
 const { getShopifyAccessToken } = require('./services/shopifyTokenStore');
+const shopifyWebhooksRoutes = require('./routes/shopifyWebhooks.routes');
 
 
 const dns = require('dns');
@@ -81,7 +82,7 @@ const shopifyWebhooksRouter = require('./webhooks/shopify.routes');
 app.use('/webhooks/shopify', shopifyWebhooksRouter);
 
 //Rutas de test GoodBarber
-const goodbarberTestRoutes = require('./webhooks/goodbarberTest.routes');
+const goodbarberTestRoutes = require('./routes/goodbarberTest.routes');
 app.use(goodbarberTestRoutes);
 
 // Rutas de webhooks
@@ -148,3 +149,5 @@ app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
     return next(err);
   }
 });
+
+app.use('/webhooks', shopifyWebhooksRoutes);
