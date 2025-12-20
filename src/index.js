@@ -150,20 +150,8 @@ app.get('/exports/goodbarber/products.csv', async (req, res, next) => {
   }
 });
 
-app.get('/admin/shopify/webhooks/list', requireAdminKey, async (req, res, next) => {
-  try {
-    const inputShop = req.query.shop;
-    if (!inputShop) return res.status(400).json({ error: 'Missing ?shop=' });
-
-    const { shopDomain, accessToken } = await getShopifyAccessToken(inputShop);
-    if (!shopDomain || !accessToken) return res.status(404).json({ error: 'Shop not installed', inputShop });
-
-    const current = await listWebhooks(shopDomain, accessToken);
-    return res.json({ ok: true, shopDomain, webhooks: current.webhooks || [] });
-  } catch (err) {
-    next(err);
-  }
-});
-
+const adminRoutes = require('./routes/admin.route');
 
 app.use('/webhooks', shopifyWebhooksRoutes);
+app.use('/admin', adminRoutes);
+
