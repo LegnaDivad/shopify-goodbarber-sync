@@ -186,7 +186,7 @@ router.get('/exports/goodbarber/latest.csv', async (req, res, next) => {
   }
 });
 
-router.get('/admin/shopify/products/count', requireAdminKey, async (req, res, next) => {
+router.get('/shopify/products/count', requireAdminKey, async (req, res, next) => {
   try {
     const inputShop = req.query.shop;
     if (!inputShop) return res.status(400).json({ error: 'Missing ?shop=' });
@@ -196,13 +196,17 @@ router.get('/admin/shopify/products/count', requireAdminKey, async (req, res, ne
 
     const v = process.env.SHOPIFY_API_VERSION || '2025-10';
 
-    // 1) Count por API (exacto)
     const countResp = await fetch(`https://${shopDomain}/admin/api/${v}/products/count.json`, {
       headers: { 'X-Shopify-Access-Token': accessToken },
     });
-    const countJson = await countResp.json();
 
-    // 2) Count por paginación (tu implementación)
+    const countText = await countResp.text();
+    if (!countResp.ok) {
+      return res.status(countResp.status).json({ error: 'Shopify count failed', details: countText });
+    }
+
+    const countJson = JSON.parse(countText);
+
     const products = await listAllProducts(shopDomain, accessToken, 250);
 
     return res.json({
@@ -216,6 +220,7 @@ router.get('/admin/shopify/products/count', requireAdminKey, async (req, res, ne
     next(err);
   }
 });
+
 
 
 module.exports = router;
