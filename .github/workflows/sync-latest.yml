@@ -17,3 +17,4 @@ jobs:
             -H "x-admin-key: ${{ secrets.ADMIN_KEY }}" \
             "https://shopify-goodbarber-sync.onrender.com/admin/jobs/sync-latest-all?limit=20" \
             | tee result.json
+ 
